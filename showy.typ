@@ -58,6 +58,14 @@
       radius: frame.at("radius", default: 5pt),
       thickness: frame.at("thickness", default: 1pt),
       dash: frame.at("dash", default: "solid"),
+      break-style: if frame.at("break-style", default: none) != none and type(frame.at("break-style", default: none)) == dictionary {
+        (
+          above-style: frame.break-style.at("above-style", default: none),
+          below_style: frame.break-style.at("below-style", default: none),
+        )
+      } else {
+        (above-style: none, below-style: none)
+      },
     ),
     title-style: (
       color: title-style.at("color", default: white),
@@ -65,25 +73,18 @@
       align: title-style.at("align", default: start),
       sep-thickness: title-style.at("sep-thickness", default: 1pt),
       boxed-style: if title-style.at("boxed-style", default: none) != none and type(title-style.at("boxed-style", default: none)) == dictionary {
-        (
-          anchor: (
-            y: title-style.boxed-style.at("anchor", default: (:)).at("y", default: horizon),
-            x: title-style.boxed-style.at("anchor", default: (:)).at("x", default: start),
-          ),
-          offset: (
-            x: title-style.boxed-style.at("offset", default: (:)).at("x", default: 0pt),
-            y: title-style.boxed-style.at("offset", default: (:)).at("y", default: 0pt),
-          ),
-          radius: title-style.boxed-style.at("radius", default: 5pt),
-        )
+        (anchor: (
+          y: title-style.boxed-style.at("anchor", default: (:)).at("y", default: horizon),
+          x: title-style.boxed-style.at("anchor", default: (:)).at("x", default: start),
+        ), offset: (
+          x: title-style.boxed-style.at("offset", default: (:)).at("x", default: 0pt),
+          y: title-style.boxed-style.at("offset", default: (:)).at("y", default: 0pt),
+        ), radius: title-style.boxed-style.at("radius", default: 5pt))
       } else {
         none
       },
     ),
-    body-style: (
-      color: body-style.at("color", default: black),
-      align: body-style.at("align", default: start),
-    ),
+    body-style: (color: body-style.at("color", default: black), align: body-style.at("align", default: start)),
     footer-style: (
       color: footer-style.at("color", default: luma(85)),
       weight: footer-style.at("weight", default: "regular"),
@@ -97,15 +98,15 @@
     ),
     shadow: if shadow != none {
       if type(shadow.at("offset", default: 4pt)) != dictionary {
-        (offset: (
-          x: shadow.at("offset", default: 4pt),
-          y: shadow.at("offset", default: 4pt),
-        ), color: shadow.at("color", default: luma(128)))
+        (
+          offset: (x: shadow.at("offset", default: 4pt), y: shadow.at("offset", default: 4pt)),
+          color: shadow.at("color", default: luma(128)),
+        )
       } else {
-        (offset: (
-          x: shadow.at("offset").at("x", default: 4pt),
-          y: shadow.at("offset").at("y", default: 4pt),
-        ), color: shadow.at("color", default: luma(128)))
+        (
+          offset: (x: shadow.at("offset").at("x", default: 4pt), y: shadow.at("offset").at("y", default: 4pt)),
+          color: shadow.at("color", default: luma(128)),
+        )
       }
     } else {
       none
@@ -127,36 +128,31 @@
     let id = str(_showy-id.get().first())
 
     /*
-     * Update title height in state.
-     *
-     * NOTE: Although a `place` and `hide` are used in the pre-render
-     * function, for avoiding nesting components inside unaccesible
-     * containers, we must call this function inside another `place`.
-     */
+         * Update title height in state.
+         *
+         * NOTE: Although a `place` and `hide` are used in the pre-render
+         * function, for avoiding nesting components inside unaccesible
+         * containers, we must call this function inside another `place`.
+         */
 
     if title != "" and props.title-style.boxed-style != none {
       place(top, showy-pre-render-title(props, id))
     }
 
     /*
-         *  Alignment wrapper
-         */
+             *  Alignment wrapper
+             */
     let alignprops = (:)
     for prop in ("spacing", "above", "below") {
       if prop in body.named() {
         alignprops.insert(prop, body.named().at(prop))
       }
     }
-    let alignwrap(content) = block(
-      ..alignprops,
-      breakable: breakable,
-      width: 100%,
-      if "align" in body.named() and body.named().align != none {
-        align(body.named().align, content)
-      } else {
-        content
-      },
-    )
+    let alignwrap(content) = block(..alignprops, breakable: breakable, width: 100%, if "align" in body.named() and body.named().align != none {
+      align(body.named().align, content)
+    } else {
+      content
+    })
 
     let showyblock = context {
       let my-state = state("showybox-" + id, 0pt)
@@ -226,8 +222,8 @@
         stroke: showy-stroke(props.frame),
       )[
         /*
-         * Title of the showybox
-         */
+                 * Title of the showybox
+                 */
         #if title != "" and props.title-style.boxed-style == none {
           showy-title(props)
         } else if title != "" and props.title-style.boxed-style != none {
@@ -250,13 +246,13 @@
         }
 
         /*
-         * Body of the showybox
-         */
+                 * Body of the showybox
+                 */
         #showy-body(props, ..body)
 
         /*
-         * Footer of the showybox
-         */
+                 * Footer of the showybox
+                 */
         #if footer != "" {
           showy-footer(props, footer)
         }
