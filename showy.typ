@@ -58,13 +58,14 @@
       radius: frame.at("radius", default: 5pt),
       thickness: frame.at("thickness", default: 1pt),
       dash: frame.at("dash", default: "solid"),
-      break-style: if frame.at("break-style", default: none) != none and type(frame.at("break-style", default: none)) == dictionary {
+      break-style: if frame.at("break-style", default: none) != none
+        and type(frame.at("break-style", default: none)) == dictionary {
         (
-          above-style: frame.break-style.at("above-style", default: none),
-          below_style: frame.break-style.at("below-style", default: none),
+          upper-break: frame.break-style.at("upper-break", default: none),
+          lower-break: frame.break-style.at("lower-break", default: none),
         )
       } else {
-        (above-style: none, below-style: none)
+        (upper-break: none, lower-break: none)
       },
     ),
     title-style: (
@@ -72,14 +73,19 @@
       weight: title-style.at("weight", default: "regular"),
       align: title-style.at("align", default: start),
       sep-thickness: title-style.at("sep-thickness", default: 1pt),
-      boxed-style: if title-style.at("boxed-style", default: none) != none and type(title-style.at("boxed-style", default: none)) == dictionary {
-        (anchor: (
-          y: title-style.boxed-style.at("anchor", default: (:)).at("y", default: horizon),
-          x: title-style.boxed-style.at("anchor", default: (:)).at("x", default: start),
-        ), offset: (
-          x: title-style.boxed-style.at("offset", default: (:)).at("x", default: 0pt),
-          y: title-style.boxed-style.at("offset", default: (:)).at("y", default: 0pt),
-        ), radius: title-style.boxed-style.at("radius", default: 5pt))
+      boxed-style: if title-style.at("boxed-style", default: none) != none
+        and type(title-style.at("boxed-style", default: none)) == dictionary {
+        (
+          anchor: (
+            y: title-style.boxed-style.at("anchor", default: (:)).at("y", default: horizon),
+            x: title-style.boxed-style.at("anchor", default: (:)).at("x", default: start),
+          ),
+          offset: (
+            x: title-style.boxed-style.at("offset", default: (:)).at("x", default: 0pt),
+            y: title-style.boxed-style.at("offset", default: (:)).at("y", default: 0pt),
+          ),
+          radius: title-style.boxed-style.at("radius", default: 5pt),
+        )
       } else {
         none
       },
@@ -128,31 +134,36 @@
     let id = str(_showy-id.get().first())
 
     /*
-         * Update title height in state.
-         *
-         * NOTE: Although a `place` and `hide` are used in the pre-render
-         * function, for avoiding nesting components inside unaccesible
-         * containers, we must call this function inside another `place`.
-         */
+     * Update title height in state.
+     *
+     * NOTE: Although a `place` and `hide` are used in the pre-render
+     * function, for avoiding nesting components inside unaccesible
+     * containers, we must call this function inside another `place`.
+     */
 
     if title != "" and props.title-style.boxed-style != none {
       place(top, showy-pre-render-title(props, id))
     }
 
     /*
-             *  Alignment wrapper
-             */
+     *  Alignment wrapper
+     */
     let alignprops = (:)
     for prop in ("spacing", "above", "below") {
       if prop in body.named() {
         alignprops.insert(prop, body.named().at(prop))
       }
     }
-    let alignwrap(content) = block(..alignprops, breakable: breakable, width: 100%, if "align" in body.named() and body.named().align != none {
-      align(body.named().align, content)
-    } else {
-      content
-    })
+    let alignwrap(content) = block(
+      ..alignprops,
+      breakable: breakable,
+      width: 100%,
+      if "align" in body.named() and body.named().align != none {
+        align(body.named().align, content)
+      } else {
+        content
+      },
+    )
 
     let showyblock = context {
       let my-state = state("showybox-" + id, 0pt)
@@ -196,63 +207,48 @@
       // }
 
       if title != "" and props.title-style.boxed-style != none {
-        if props.title-style.boxed-style.anchor.y == bottom {
-          v(my-state.final())
-        } else if props.title-style.boxed-style.anchor.y == horizon {
-          v(my-state.final() / 2)
-        } // Otherwise don't add extra space
-
         // Add the boxed-title shadow before rendering the body
         if props.shadow != none {
           showy-boxed-title-shadow(props, id)
         }
       }
 
-      block(
-        width: if props.shadow == none {
-          width
-        } else {
-          100%
-        },
-        fill: props.frame.body-color,
-        radius: props.frame.radius,
-        inset: 0pt,
-        spacing: 0pt,
-        breakable: breakable,
-        stroke: showy-stroke(props.frame),
-      )[
+      let body-props = props
+
+      block(width: 100%, inset: 0pt, spacing: 0pt, breakable: breakable)[
         /*
-                 * Title of the showybox
-                 */
+         * Title of the showybox
+         */
         #if title != "" and props.title-style.boxed-style == none {
           showy-title(props)
         } else if title != "" and props.title-style.boxed-style != none {
-          if props.title-style.boxed-style.anchor.y == top {
-            v(my-state.final())
+          let t-height = if props.title-style.boxed-style.anchor.y == bottom {
+            my-state.final()
           } else if props.title-style.boxed-style.anchor.y == horizon {
-            v(my-state.final() / 2)
-          }
-
-          place(
-            top + props.title-style.boxed-style.anchor.x,
-            dx: props.title-style.boxed-style.offset.x,
-            dy: props.title-style.boxed-style.offset.y + if props.title-style.boxed-style.anchor.y == bottom {
-              -my-state.final()
-            } else if props.title-style.boxed-style.anchor.y == horizon {
-              -my-state.final() / 2
-            },
-            block(spacing: 0pt, inset: (x: 1em), showy-title(props)),
+            my-state.final() / 2
+          } // Otherwise don't add extra space
+          body-props.insert("float-title-height", t-height)
+          body-props.insert(
+            "float-title",
+            place(
+              top + props.title-style.boxed-style.anchor.x,
+              dx: props.title-style.boxed-style.offset.x,
+              dy: props.title-style.boxed-style.offset.y,
+              block(spacing: 0pt, inset: (x: 1em), showy-title(props)),
+            ),
           )
         }
 
         /*
-                 * Body of the showybox
-                 */
-        #showy-body(props, ..body)
+         * Body of the showybox
+         */
+        #body-props.insert("has_title", title != "" and props.title-style.boxed-style == none)
+        #body-props.insert("has_footer", footer != "")
+        #showy-body(body-props, ..body)
 
         /*
-                 * Footer of the showybox
-                 */
+         * Footer of the showybox
+         */
         #if footer != "" {
           showy-footer(props, footer)
         }
