@@ -149,6 +149,26 @@
     } else { showy-inset }
       - bottom-radius
   )
+  //No bottom-stroke for top-caps.
+  let top-borders = showy-borders
+  top-borders.bottom = none
+  let default-header = block(
+    stroke: top-borders,
+    fill: sbox-props.frame.body-color,
+    radius: (top-left: tl-radius, top-right: tr-radius, rest: 0pt),
+    width: 100%,
+    height: top-radius,
+  )
+  // No top-stroke for bottom-caps.
+  let bottom-borders = showy-borders
+  bottom-borders.top = none
+  let default-footer = block(
+    stroke: bottom-borders,
+    //Radius is replaced with just the bottom radii
+    radius: (bottom-left: bl-radius, bottom-right: br-radius, rest: 0pt),
+    width: 100%,
+    height: bottom-radius,
+  )
   // Keep track of each time the header is placed on a page.
   // Then check if we're at the first placement (for header) or the last (footer)
   // If not, we'll use the 'between' forms of the  border lines.
@@ -157,34 +177,11 @@
     //So, get where we are, and increment the counter
     let header-count = get-child()
     header-count.step()
-    //No bottom-stroke for top-caps.
-    let top-borders = showy-borders
-    top-borders.bottom = none
-    // If this is the first header...
-    context if header-count.get() == (1,) {
-      // If there's a floating title, make space for it.
-      v(sbox-props.at("float-title-height", default: 0pt))
-      block(
-        stroke: top-borders,
-        fill: sbox-props.frame.body-color,
-        //Change the radius to only the top-ones.
-        radius: (top-left: tl-radius, top-right: tr-radius, rest: 0pt),
-        width: 100%,
-        // And here too, make space for floating title.
-        height: top-radius + sbox-props.at("float-title-height", default: 0pt),
-      )
-      //Insert the title.
-      sbox-props.at("float-title", default: none)
-    } else if sbox-props.frame.break-style.upper-break == none {
+    let h = if sbox-props.frame.break-style.upper-break == none {
       // If it's not the first header and no styling, then
       // just the block with no space for the title.
-      block(
-        stroke: top-borders,
-        fill: sbox-props.frame.body-color,
-        radius: (top-left: tl-radius, top-right: tr-radius, rest: 0pt),
-        width: 100%,
-        height: top-radius,
-      )
+      default-header
+      v(tshift)
     } else {
       // If not the first header and we have styling, use the styling.
       // Add the cap, then the appropriate amount of inset.
@@ -194,29 +191,36 @@
       box(sbox-props.frame.break-style.upper-break)
       v(showy-inset.top)
     }
+
+    //If this is the only header, do nothing
+    if header-count.final() != (1,) {
+      // If this is the first header...
+      if header-count.get() == (0,) {
+        //Hide an invisible copy so it's consistent height
+        hide(h)
+      } else {
+        //Else display it
+        h
+      }
+    } else { }
   }
+
   let cell-below = context {
     //So, get where we are, but do not increment the counter.
     let header-count = get-child()
-    // No top-stroke for bottom-caps.
-    let bottom-borders = showy-borders
-    bottom-borders.top = none
     //If this is after the last header, it's the last column. Or if there's no special styling.
-    if header-count.get() == header-count.final() or sbox-props.frame.break-style.lower-break == none {
-      block(
-        stroke: bottom-borders,
-        //Radius is replaced with just the bottom radii
-        radius: (bottom-left: bl-radius, bottom-right: br-radius, rest: 0pt),
-        width: 100%,
-        height: bottom-radius,
-      )
+    let f = if header-count.get() == header-count.final() or sbox-props.frame.break-style.lower-break == none {
+      default-footer
     } else {
       // If not the last header and we have styling, use the styling.
       // Add the appropriate amount of inset, then the cap.
-      set par(spacing: 0pt, leading: 0pt)
-      box(width: 100%, stroke: body-borders, fill: sbox-props.frame.body-color, height: showy-inset.bottom)
       box(sbox-props.frame.break-style.lower-break)
     }
+
+    //Footers can be displayed whenever it's more than one column and it's not the last.
+    if header-count.final() != (1,) and header-count.get() != header-count.final() {
+      f
+    } else { }
   }
   //Disable the insets, because they're included.
   showy-inset.top = 0pt
@@ -232,6 +236,26 @@
     },
     //And the header
     grid.header(grid.cell(cell-above)),
+    //So, the first column gets a different-sized header, because of titles, and that was
+    // screwing up the heights of everything after.  But we can just make that
+    // a traditional cell, and have it splat over the top of an invisible copy of the header
+    grid.cell(
+      breakable: false,
+      [
+        #v(-measure(cell-above).height)
+        // If there's a floating title, make space for it.
+        #v(sbox-props.at("float-title-height", default: 0pt))
+        #block(
+          stroke: top-borders,
+          fill: sbox-props.frame.body-color,
+          radius: (top-left: tl-radius, top-right: tr-radius, rest: 0pt),
+          width: 100%,
+          height: top-radius + sbox-props.at("float-title-height", default: 0pt),
+        )
+        //Insert the title.
+        #sbox-props.at("float-title", default: none)
+      ],
+    ),
     //Then the body cell
     grid.cell(
       breakable: sbox-props.breakable,
@@ -269,6 +293,9 @@
       //Take care of the inset+radius, shifting into the footer-cap
       #v(bshift)
     ],
+    // Similarly the basic end-cap can just be another cell at the end,
+    // which prevents all the layout convergence problems.
+    grid.cell(fill: sbox-props.frame.body-color, default-footer),
     //And the footer cell.  Note that the fill happens here, not in cell-below
     // because cell-below comes after the content, which would put the fill over the text.
     // But the grid.cell doesn't, I guess?
